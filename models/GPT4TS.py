@@ -24,7 +24,7 @@ class GPT4TS(nn.Module):
         
         if configs.is_gpt:
             if configs.pretrain:
-                self.gpt2 = GPT2Model.from_pretrained('gpt2', output_attentions=True, output_hidden_states=True)  # loads a pretrained GPT-2 base model
+                self.gpt2 = GPT2Model.from_pretrained('/root/Load_LLM-experiments/Mine_4/GPT4TS/models/local_gpt2/', output_attentions=True, output_hidden_states=True)  # loads a pretrained GPT-2 base model
             else:
                 print("------------------no pretrain------------------")
                 self.gpt2 = GPT2Model(GPT2Config())
@@ -48,7 +48,7 @@ class GPT4TS(nn.Module):
         self.cnt = 0
 
 
-    def forward(self, x, itr):
+    def forward(self, x, x_mark, itr):
         B, L, M = x.shape
 
         means = x.mean(1, keepdim=True).detach()
@@ -66,7 +66,8 @@ class GPT4TS(nn.Module):
         if self.is_gpt:
             outputs = self.gpt2(inputs_embeds=outputs).last_hidden_state
 
-        outputs = self.out_layer(outputs.reshape(B*M, -1))
+        outputs = outputs.reshape(B*M, -1)
+        outputs = self.out_layer(outputs)
         outputs = rearrange(outputs, '(b m) l -> b l m', b=B)
 
         outputs = outputs * stdev

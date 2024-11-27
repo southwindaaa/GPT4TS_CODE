@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from utils.painting import store_str,draw_comparasion
 
 from datetime import datetime
 from distutils.util import strtobool
@@ -263,11 +264,11 @@ def vali(model, vali_data, vali_loader, criterion, args, device, itr):
             batch_x_mark = batch_x_mark.float().to(device)
             batch_y_mark = batch_y_mark.float().to(device)
 
-            outputs = model(batch_x, itr)
+            outputs = model(batch_x, batch_x_mark,itr)
             
             # encoder - decoder
-            outputs = outputs[:, -args.pred_len:, :]
-            batch_y = batch_y[:, -args.pred_len:, :].to(device)
+            outputs = outputs[:, -args.pred_len:, -1]
+            batch_y = batch_y[:, -args.pred_len:].to(device)
 
             pred = outputs.detach().cpu()
             true = batch_y.detach().cpu()
@@ -303,12 +304,13 @@ def test(model, test_data, test_loader, args, device, itr):
 
             batch_x = batch_x.float().to(device)
             batch_y = batch_y.float()
+            batch_x_mark = batch_x_mark.float().to(device)
             
-            outputs = model(batch_x[:, -args.seq_len:, :], itr)
+            outputs = model(batch_x[:, -args.seq_len:, :],batch_x_mark[:, -args.seq_len:, :],itr)
             
             # encoder - decoder
-            outputs = outputs[:, -args.pred_len:, :]
-            batch_y = batch_y[:, -args.pred_len:, :].to(device)
+            outputs = outputs[:, -args.pred_len:, -1]
+            batch_y = batch_y[:, -args.pred_len:].to(device)
 
             pred = outputs.detach().cpu().numpy()
             true = batch_y.detach().cpu().numpy()
@@ -320,12 +322,13 @@ def test(model, test_data, test_loader, args, device, itr):
     trues = np.array(trues)
     # mases = np.mean(np.array(mases))
     print('test shape:', preds.shape, trues.shape)
-    preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
-    trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
+    preds = preds.reshape(-1,  preds.shape[-1])
+    trues = trues.reshape(-1,  trues.shape[-1])
     print('test shape:', preds.shape, trues.shape)
+    draw_comparasion(args,trues,preds,itr)
 
-    mae, mse, rmse, mape, mspe, smape, nd = metric(preds, trues)
+    mae, mse, rmse, mape, mspe, smape, nd, r2 = metric(preds, trues)
     # print('mae:{:.4f}, mse:{:.4f}, rmse:{:.4f}, smape:{:.4f}, mases:{:.4f}'.format(mae, mse, rmse, smape, mases))
-    print('mae:{:.4f}, mse:{:.4f}, rmse:{:.4f}, smape:{:.4f}'.format(mae, mse, rmse, smape))
+    store_str(args,'mae:{:.4f}, mse:{:.4f}, rmse:{:.4f},r2:{:.4f}'.format(mae, mse, rmse, r2))
 
-    return mse, mae
+    return mse, mae, rmse, r2

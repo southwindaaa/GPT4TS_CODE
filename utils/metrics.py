@@ -36,6 +36,10 @@ def SMAPE(pred, true):
 
 def ND(pred, true):
     return np.mean(np.abs(true - pred)) / np.mean(np.abs(true))
+def R2(pred, true):
+    ss_res = np.sum((true - pred) ** 2)  # 残差平方和
+    ss_tot = np.sum((true - true.mean()) ** 2)  # 总体平方和
+    return 1 - ss_res / (ss_tot + 1e-8)  # 避免除零错误
 
 def metric(pred, true):
     mae = MAE(pred, true)
@@ -45,5 +49,5 @@ def metric(pred, true):
     mspe = MSPE(pred, true)
     smape = SMAPE(pred, true)
     nd = ND(pred, true)
-
-    return mae, mse, rmse, mape, mspe, smape, nd
+    r2 = R2(pred, true)
+    return mae, mse, rmse, mape, mspe, smape, nd, r2

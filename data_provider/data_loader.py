@@ -212,7 +212,7 @@ class Dataset_Custom(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
                  target='OT', scale=True, timeenc=0, freq='h',
-                 percent=10, max_len=-1, train_all=False):
+                 percent=10, max_len=-1, train_all=False,is_time=False):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -234,7 +234,7 @@ class Dataset_Custom(Dataset):
         self.timeenc = timeenc
         self.freq = freq
         self.percent = percent
-
+        self.is_time = is_time
         self.root_path = root_path
         self.data_path = data_path
         self.__read_data__()
@@ -293,6 +293,9 @@ class Dataset_Custom(Dataset):
 
         self.data_x = data[border1:border2]
         self.data_y = data[border1:border2]
+        if self.is_time == 1:
+            self.data_x = np.hstack((data_stamp, self.data_x))
+            self.data_y = np.hstack((data_stamp, self.data_y))
         self.data_stamp = data_stamp
 
     def __getitem__(self, index):
@@ -302,15 +305,19 @@ class Dataset_Custom(Dataset):
         s_end = s_begin + self.seq_len
         r_begin = s_end - self.label_len
         r_end = r_begin + self.label_len + self.pred_len
-        seq_x = self.data_x[s_begin:s_end, feat_id:feat_id+1]
-        seq_y = self.data_y[r_begin:r_end, feat_id:feat_id+1]
+        if self.features == 'M' or self.features =='S':
+            seq_x = self.data_x[s_begin:s_end, feat_id:feat_id+1] # 取了seq_len长的某一列的特征,(168, 1),feat_id的值为12
+            seq_y = self.data_y[r_begin:r_end, feat_id:feat_id+1] # label_len+pred_len
+        else:
+            seq_x = self.data_x[s_begin:s_end]
+            seq_y = self.data_y[r_begin:r_end,-1]
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
 
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
     def __len__(self):
-        return (len(self.data_x) - self.seq_len - self.pred_len + 1) * self.enc_in
+        return (len(self.data_x) - self.seq_len - self.pred_len + 1)
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)

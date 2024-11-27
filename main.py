@@ -1,5 +1,7 @@
 from data_provider.data_factory import data_provider
 from utils.tools import EarlyStopping, adjust_learning_rate, visual, vali, test
+from utils.painting import store_str,draw_losses
+from utils.metrics import metric
 from tqdm import tqdm
 from models.PatchTST import PatchTST
 from models.GPT4TS import GPT4TS
@@ -78,7 +80,8 @@ parser.add_argument('--tmax', type=int, default=10)
 parser.add_argument('--itr', type=int, default=3)
 parser.add_argument('--cos', type=int, default=0)
 
-
+# new
+parser.add_argument('--is_time',type=int,default=1)
 
 args = parser.parse_args()
 
@@ -93,9 +96,11 @@ SEASONALITY_MAP = {
    "quarterly": 4,
    "yearly": 1
 }
-
+store_str(args,'seq_len={},pred_len={}'.format(args.seq_len,args.pred_len))
 mses = []
 maes = []
+rmses = []
+r2s = []
 
 for ii in range(args.itr):
 
@@ -147,7 +152,9 @@ for ii in range(args.itr):
         criterion = SMAPE()
     
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(model_optim, T_max=args.tmax, eta_min=1e-8)
-
+    train_losses=[]
+    vali_losses=[]
+    test_losses=[]
     for epoch in range(args.train_epochs):
 
         iter_count = 0
@@ -163,10 +170,10 @@ for ii in range(args.itr):
             batch_x_mark = batch_x_mark.float().to(device)
             batch_y_mark = batch_y_mark.float().to(device)
             
-            outputs = model(batch_x, ii)
+            outputs = model(batch_x, batch_x_mark,ii)
 
-            outputs = outputs[:, -args.pred_len:, :]
-            batch_y = batch_y[:, -args.pred_len:, :].to(device)
+            outputs = outputs[:, -args.pred_len:, -1]
+            batch_y = batch_y[:, -args.pred_len:].to(device)
             loss = criterion(outputs, batch_y)
             train_loss.append(loss.item())
 
@@ -185,7 +192,10 @@ for ii in range(args.itr):
 
         train_loss = np.average(train_loss)
         vali_loss = vali(model, vali_data, vali_loader, criterion, args, device, ii)
-        # test_loss = vali(model, test_data, test_loader, criterion, args, device, ii)
+        test_loss = vali(model, test_data, test_loader, criterion, args, device, ii)
+        train_losses.append(train_loss)
+        vali_losses.append(vali_loss)
+        test_losses.append(test_loss)
         # print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}, Test Loss: {4:.7f}".format(
         #     epoch + 1, train_steps, train_loss, vali_loss, test_loss))
         print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".format(
@@ -203,12 +213,20 @@ for ii in range(args.itr):
 
     best_model_path = path + '/' + 'checkpoint.pth'
     model.load_state_dict(torch.load(best_model_path))
+    draw_losses(args,train_losses,vali_losses,test_losses,ii)
     print("------------------------------------")
-    mse, mae = test(model, test_data, test_loader, args, device, ii)
+    mse, mae, rmse, r2 = test(model, test_data, test_loader, args, device, ii)
+    rmses.append(rmse)
+    r2s.append(r2)
     mses.append(mse)
     maes.append(mae)
 
 mses = np.array(mses)
 maes = np.array(maes)
-print("mse_mean = {:.4f}, mse_std = {:.4f}".format(np.mean(mses), np.std(mses)))
-print("mae_mean = {:.4f}, mae_std = {:.4f}".format(np.mean(maes), np.std(maes)))
+rmses = np.array(rmses)
+r2s = np.array(r2s)
+store_str(args,"mae_mean = {:.4f}, mae_std = {:.4f}".format(np.mean(maes), np.std(maes)))
+store_str(args,"mse_mean = {:.4f}, mse_std = {:.4f}".format(np.mean(mses), np.std(mses)))
+store_str(args,"rmse_mean = {:.4f}, rmse_std = {:.4f}".format(np.mean(rmses), np.std(rmses)))
+store_str(args,"r2_mean = {:.4f}, r2_std = {:.4f}".format(np.mean(r2s), np.std(r2s)))
+store_str(args,'')
