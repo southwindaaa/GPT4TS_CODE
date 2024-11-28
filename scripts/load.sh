@@ -8,8 +8,8 @@ for pred_len in 24 72 120 168
 do
 python main.py \
     --root_path ./datasets/ \
-    --data_path AK_G0202610_load.csv \
-    --model_id AK_G0202610_load_$model'_'$gpt_layer'_'$seq_len'_'$pred_len'_'$percent \
+    --data_path AK_G0200700_load.csv \
+    --model_id AK_G0200700_load_$model'_'$gpt_layer'_'$seq_len'_'$pred_len'_'$percent \
     --data custom \
     --seq_len $seq_len \
     --label_len 168 \
